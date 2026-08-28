@@ -10,8 +10,10 @@
 <meta name="apple-mobile-web-app-title" content="WonderPlay">
 <meta name="description" content="WonderPlay — a playful learning game for kids: shapes, numbers, colours, jigsaws and balloon popping.">
 <title>WonderPlay — Learn &amp; Play</title>
-<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%239775FA'/%3E%3Ctext y='72' x='50' font-size='58' text-anchor='middle'%3E%F0%9F%8E%A0%3C/text%3E%3C/svg%3E">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='78' font-size='80'%3E%F0%9F%8E%A0%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -222,6 +224,13 @@
   .book-btn .bk-txt b{display:block; font-size:16px;}
   .book-btn .bk-txt span{font-size:12px; font-weight:700; opacity:.8;}
   .book-btn .bk-count{font-weight:800; font-size:15px; background:#fff; padding:5px 12px; border-radius:999px; box-shadow:0 2px 0 rgba(0,0,0,.12);}
+
+  .install-btn{
+    display:flex; align-items:center; gap:12px; width:100%; margin-top:11px; padding:14px 16px;
+    border-radius:22px; text-align:left; font-size:16px;
+    --c1:#A8EFC0; --c2:#62D98A; --c3:#33A860; color:#14532D; text-shadow:none;
+  }
+  .install-btn[hidden]{display:none;}
 
   /* ============ SHARED ============ */
   .chips{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:14px;}
@@ -622,6 +631,10 @@
       <span class="bk-emoji">📖</span>
       <span class="bk-txt"><b>My Sticker Book</b><span>Pop golden balloons to collect!</span></span>
       <span class="bk-count" id="bookCount">0/12</span>
+    </button>
+    <button class="k3d install-btn" id="installBtn" hidden>
+      <span class="bk-emoji">📲</span>
+      <span class="bk-txt"><b>Add to Home Screen</b><span>Play like a real app — even offline!</span></span>
     </button>
     <p class="footer-note">Made with 💜 for curious little minds · earn ⭐ in every game!</p>
   </section>
@@ -1803,6 +1816,42 @@ document.addEventListener('visibilitychange', ()=>{
 });
 /* unlock audio on first touch */
 document.addEventListener('pointerdown', ()=>AudioFX.ensure(), {once:true});
+
+/* ============ PWA: install prompt, service worker, deep links ============ */
+(function(){
+  const secure = location.protocol==='https:' ||
+                 ['localhost','127.0.0.1'].includes(location.hostname);
+
+  /* --- Add to Home Screen (Android/Chrome) --- */
+  let deferred=null;
+  const btn=$('#installBtn');
+  addEventListener('beforeinstallprompt', e=>{
+    e.preventDefault(); deferred=e; if(btn) btn.hidden=false;
+  });
+  if(btn) btn.addEventListener('click', async ()=>{
+    AudioFX.ding();
+    if(!deferred) return;
+    btn.hidden=true;
+    deferred.prompt();
+    try{ await deferred.userChoice; }catch(e){}
+    deferred=null;
+  });
+  addEventListener('appinstalled', ()=>{ deferred=null; if(btn) btn.hidden=true; });
+
+  /* --- Manifest shortcuts: /?game=balloons | /?game=book --- */
+  try{
+    const g=new URLSearchParams(location.search).get('game');
+    if(g==='balloons'){ go('screen-balloons'); Balloons.start(); }
+    else if(g==='book'){ renderBook(); go('screen-book'); }
+  }catch(e){}
+
+  /* --- Offline support (https only; a file:// open just skips this) --- */
+  if(secure && 'serviceWorker' in navigator){
+    addEventListener('load', ()=>{
+      navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    });
+  }
+})();
 </script>
 </body>
 </html>
